@@ -1,0 +1,10 @@
+cradle:
+  cabal:
+    - path: "app/Main.hs"
+      component: "lambda:exe:lambda"
+
+    - path: "app/Pretty.hs"
+      component: "lambda:exe:lambda"
+
+    - path: "app/AST.hs"
+      component: "lambda:exe:lambda"

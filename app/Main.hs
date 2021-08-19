@@ -22,7 +22,7 @@ pName :: Parser Name
 pName = (:[]) <$> (satisfy isAlphaNum :: Parser Char)
 
 -- Variable is a single character
-pVar :: Parser Expr
+pVar :: Parser Expr 
 pVar = Var <$> pName
 
 -- λv.e \v.e Both works for Lambda
@@ -55,7 +55,11 @@ pApp p = p >>= go
 main :: IO ()
 main = forever $ hSetBuffering stdin LineBuffering
                  >> putStr ">"
-                 >> getLine >>= \l -> case (parse pExpr "" . T.pack) l of
-                                      Left err -> putStr $ errorBundlePretty err
-                                      Right xs -> do print xs 
-                                                     putStrLn $ pretty xs
+                 >> getLine 
+                 >>= \s -> either (putStr . errorBundlePretty) 
+                                  (\a -> do putStr "Parsed : "
+                                            putStrLn $ pretty a 
+                                            putStr "AST    : "
+                                            print a) 
+                                  (parse pExpr "" . T.pack $ s)
+                                  

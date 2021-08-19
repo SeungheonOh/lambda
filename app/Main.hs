@@ -3,9 +3,10 @@ module Main where
 
 import AST
 import Pretty
+import Eval
 
 import System.IO
-import Control.Applicative hiding (many)
+import Control.Applicative ( Alternative((<|>)), optional )
 import Control.Monad
 import Data.Char
 
@@ -60,6 +61,8 @@ main = forever $ hSetBuffering stdin LineBuffering
                                   (\a -> do putStr "Parsed : "
                                             putStrLn $ pretty a 
                                             putStr "AST    : "
-                                            print a) 
+                                            print a
+                                            putStr "IsNF   : "
+                                            print $ isNF a) 
                                   (parse pExpr "" . T.pack $ s)
                                   

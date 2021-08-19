@@ -8,3 +8,6 @@ cradle:
 
     - path: "app/AST.hs"
       component: "lambda:exe:lambda"
+        
+    - path: "app/Eval.hs"
+      component: "lambda:exe:lambda"

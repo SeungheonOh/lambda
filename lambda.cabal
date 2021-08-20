@@ -37,5 +37,6 @@ executable lambda
                       , text
                       , pretty
                       , unordered-containers
+                      , mtl
     hs-source-dirs:   app
     default-language: Haskell2010

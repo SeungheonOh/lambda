@@ -6,6 +6,7 @@ import Pretty
 import Eval
 
 import System.IO
+import Control.Monad.State
 import Control.Applicative ( Alternative((<|>)), optional )
 import Control.Monad
 import Data.Char
@@ -23,7 +24,7 @@ pName :: Parser Name
 pName = (:[]) <$> (satisfy isAlphaNum :: Parser Char)
 
 -- Variable is a single character
-pVar :: Parser Expr 
+pVar :: Parser Expr
 pVar = Var <$> pName
 
 -- λv.e \v.e Both works for Lambda
@@ -53,16 +54,21 @@ pApp p = p >>= go
         Nothing -> return acc
         Just x -> go (App acc x)
 
+runString :: String -> IO ()
+runString s = either (putStr . errorBundlePretty)
+                     ((\a -> do putStr "Parsed : "
+                                putStrLn $ pretty a
+                                putStr "AST    : "
+                                print a
+                                putStr "IsNF   : "
+                                print $ isNF a
+                                putStr "isHNF  : "
+                                print $ isHNF a) . reduction)
+                     (parse pExpr "" . T.pack $ s)
+
 main :: IO ()
 main = forever $ hSetBuffering stdin LineBuffering
                  >> putStr ">"
-                 >> getLine 
-                 >>= \s -> either (putStr . errorBundlePretty) 
-                                  (\a -> do putStr "Parsed : "
-                                            putStrLn $ pretty a 
-                                            putStr "AST    : "
-                                            print a
-                                            putStr "IsNF   : "
-                                            print $ isNF a) 
-                                  (parse pExpr "" . T.pack $ s)
+                 >> getLine
+                 >>= \s -> runString s
                                   

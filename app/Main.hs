@@ -31,20 +31,20 @@ pVar = Var <$> pName
 -- λv.e \v.e Both works for Lambda
 pLam :: Parser UTLC
 pLam = (char 'λ' <|> char '\\') *> pName <* char '.'
-        >>= (\n -> Lam n <$> pExpr)
+        >>= (\n -> Lam n <$> pUTLC)
 
 pParen :: Parser a -> Parser a
 pParen p = char '(' *> p <* char ')'
 
 -- Every Lambda and Variable is a Term
 pTerm :: Parser UTLC
-pTerm = try (pParen pExpr)
+pTerm = try (pParen pUTLC)
      <|>try pLam
      <|>pVar
 
 -- Constructs Application based on all Terms
-pExpr :: Parser UTLC
-pExpr = pApp (space *> pTerm <* space)
+pUTLC :: Parser UTLC
+pUTLC = pApp (space *> pTerm <* space)
 
 pApp :: Parser UTLC -> Parser UTLC
 pApp p = p >>= go
@@ -54,20 +54,25 @@ pApp p = p >>= go
       case r of
         Nothing -> return acc
         Just x -> go (App acc x)
+        
+pExpr :: Parser Expr 
+pExpr = try $ Assign <$> pName <* (space *> string ":=" <* space) <*> pUTLC
+     <|>Calc <$> pUTLC
 
 runString :: String -> IO ()
 runString s = either 
               (putStr . errorBundlePretty)
-              ((\a -> do putStr "Parsed : "
-                         putStrLn $ pretty a
-                         putStr "AST    : "
-                         print a
-                         putStr "IsNF   : "
-                         print $ isNF a
-                         putStr "isHNF  : "
-                         print $ isHNF a) . reduction)
+              (\a -> do print a)
+              -- ((\a -> do putStr "Parsed : "
+              --            putStrLn $ pretty a
+              --            putStr "AST    : "
+              --            print a
+              --            putStr "IsNF   : "
+              --            print $ isNF a
+              --            putStr "isHNF  : "
+              --            print $ isHNF a) . reduction)
               (parse pExpr "" . T.pack $ s)
-
+              
 main :: IO ()
 main = forever $ hSetBuffering stdin LineBuffering
                  >> putStr ">"

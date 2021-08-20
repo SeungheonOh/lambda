@@ -22,13 +22,14 @@ type Parser = Parsec Void Text
 
 pName :: Parser Name
 pName = (:[]) <$> (satisfy isAlphaNum :: Parser Char)
+     <|> string "\"" *> many alphaNumChar <* string "\""
 
 -- Variable is a single character
-pVar :: Parser Expr
+pVar :: Parser UTLC 
 pVar = Var <$> pName
 
 -- λv.e \v.e Both works for Lambda
-pLam :: Parser Expr
+pLam :: Parser UTLC
 pLam = (char 'λ' <|> char '\\') *> pName <* char '.'
         >>= (\n -> Lam n <$> pExpr)
 
@@ -36,16 +37,16 @@ pParen :: Parser a -> Parser a
 pParen p = char '(' *> p <* char ')'
 
 -- Every Lambda and Variable is a Term
-pTerm :: Parser Expr
+pTerm :: Parser UTLC
 pTerm = try (pParen pExpr)
-      <|> try pLam
-      <|> pVar
+     <|>try pLam
+     <|>pVar
 
 -- Constructs Application based on all Terms
-pExpr :: Parser Expr
+pExpr :: Parser UTLC
 pExpr = pApp (space *> pTerm <* space)
 
-pApp :: Parser Expr -> Parser Expr
+pApp :: Parser UTLC -> Parser UTLC
 pApp p = p >>= go
   where
     go acc = do
@@ -55,16 +56,17 @@ pApp p = p >>= go
         Just x -> go (App acc x)
 
 runString :: String -> IO ()
-runString s = either (putStr . errorBundlePretty)
-                     ((\a -> do putStr "Parsed : "
-                                putStrLn $ pretty a
-                                putStr "AST    : "
-                                print a
-                                putStr "IsNF   : "
-                                print $ isNF a
-                                putStr "isHNF  : "
-                                print $ isHNF a) . reduction)
-                     (parse pExpr "" . T.pack $ s)
+runString s = either 
+              (putStr . errorBundlePretty)
+              ((\a -> do putStr "Parsed : "
+                         putStrLn $ pretty a
+                         putStr "AST    : "
+                         print a
+                         putStr "IsNF   : "
+                         print $ isNF a
+                         putStr "isHNF  : "
+                         print $ isHNF a) . reduction)
+              (parse pExpr "" . T.pack $ s)
 
 main :: IO ()
 main = forever $ hSetBuffering stdin LineBuffering

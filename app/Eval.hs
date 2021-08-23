@@ -2,18 +2,19 @@
 module Eval where
 
 import AST ( Expr(..), UTLC(..), Name )
-import Data.HashMap.Strict ( HashMap )
+import Data.HashMap.Strict
 
-type Environment = (HashMap Name UTLC, Expr) 
+type Context = HashMap Name UTLC
+type Environment = (Context, Expr)
 
 isNF :: UTLC -> Bool
-isNF (Var _) = True 
+isNF (Var _) = True
 isNF (Lam _ e) = isNF e
 isNF (App (Lam _ _) e) = False
 isNF (App e1 e2) = isNF e1 && isNF e2
 
 isHNF :: UTLC -> Bool
-isHNF (Var _) = True 
+isHNF (Var _) = True
 isHNF (Lam _ e) = isNF e
 isHNF (App (Lam _ _) e) = False
 isHNF (App e1 e2) = isNF e1
@@ -22,14 +23,29 @@ substitute :: UTLC -- Expression
            -> UTLC -- Expression to replace
            -> UTLC -- New expression
            -> UTLC
-substitute (Var e) o n = if Var e == o then n 
+substitute (Var e) o n = if Var e == o then n
                                        else Var e
 substitute (App a b) o n = App (substitute a o n) (substitute b o n)
 substitute (Lam a f) o n = Lam a (substitute f o n)
 
-reduction :: UTLC -> UTLC
-reduction (App (Lam n e1) e2) = substitute e1 (Var n) e2
-reduction e = e 
+stepReduction :: UTLC -> UTLC -- single step reduction
+stepReduction (App (Lam n e1) e2) = substitute (stepReduction e1) (Var n) (stepReduction e2)
+stepReduction (App e1 e2) = App (stepReduction e1) (stepReduction e2)
+stepReduction (Lam n e1) = Lam n (stepReduction e1)
+stepReduction e = e
 
-eval :: Environment -> Environment
-eval (m, e) = (m, e)
+reduction :: UTLC -> UTLC
+reduction e
+  | not $ isNF e = reduction $ stepReduction e
+  | otherwise = e
+
+apply :: Context -> UTLC -> UTLC
+apply c (Var a) = case c !? a of
+                    Just v -> v
+                    Nothing -> Var a
+apply c (App e1 e2) = App (apply c e1) (apply c e2)
+apply c (Lam n e1) = Lam n (apply c e1)
+
+eval :: Environment -> (Context, Maybe UTLC)
+eval (m, Assign n e) = (insert n e m, Nothing)
+eval (m, Calc e) = (m, Just $ (reduction . apply m) e)

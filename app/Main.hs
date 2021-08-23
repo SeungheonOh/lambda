@@ -13,6 +13,7 @@ import Data.Char
 
 import           Data.Text (Text)
 import qualified Data.Text            as T
+import Data.HashMap.Strict as H
 import           Data.Void
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
@@ -25,7 +26,7 @@ pName = (:[]) <$> (satisfy isAlphaNum :: Parser Char)
      <|> string "\"" *> many alphaNumChar <* string "\""
 
 -- Variable is a single character
-pVar :: Parser UTLC 
+pVar :: Parser UTLC
 pVar = Var <$> pName
 
 -- λv.e \v.e Both works for Lambda
@@ -54,15 +55,17 @@ pApp p = p >>= go
       case r of
         Nothing -> return acc
         Just x -> go (App acc x)
-        
-pExpr :: Parser Expr 
-pExpr = try $ Assign <$> pName <* (space *> string ":=" <* space) <*> pUTLC
+
+pExpr :: Parser Expr
+pExpr = try (Assign <$> pName <* (space *> string ":=" <* space) <*> pUTLC)
      <|>Calc <$> pUTLC
 
 runString :: String -> IO ()
-runString s = either 
+runString s = either
               (putStr . errorBundlePretty)
-              (\a -> do print a)
+              (\a -> do case eval (H.empty, a) of
+                          (c, Just v) -> putStrLn $ pretty v
+                          (c, Nothing) -> putStrLn "ok")
               -- ((\a -> do putStr "Parsed : "
               --            putStrLn $ pretty a
               --            putStr "AST    : "
@@ -72,10 +75,24 @@ runString s = either
               --            putStr "isHNF  : "
               --            print $ isHNF a) . reduction)
               (parse pExpr "" . T.pack $ s)
-              
+
+repl :: StateT Context IO ()
+repl = do lift $ putStr ">"
+          l <- lift getLine
+          case parse pExpr "" . T.pack $ l of
+            Left e -> (lift . putStr . errorBundlePretty) e
+            Right a -> 
+              do context <- get
+                 case eval (context, a) of 
+                  (c, Just e) -> do put c 
+                                    lift $ putStrLn $ pretty e
+                  (c,Nothing) -> do put c 
+                                    lift $ putStrLn "OK"
+          repl
+
+
+
 main :: IO ()
 main = forever $ hSetBuffering stdin LineBuffering
-                 >> putStr ">"
-                 >> getLine
-                 >>= \s -> runString s
+                 >> execStateT repl H.empty
                                   

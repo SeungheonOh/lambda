@@ -38,14 +38,25 @@ reduction :: UTLC -> UTLC
 reduction e
   | not $ isNF e = reduction $ stepReduction e
   | otherwise = e
-
+  
+hasKey :: Context -> UTLC -> Bool
+hasKey c (Var a) = member a c
+hasKey c (App e1 e2) = hasKey c e1 || hasKey c e2
+hasKey c (Lam _ e1) = hasKey c e1
+ 
 apply :: Context -> UTLC -> UTLC
 apply c (Var a) = case c !? a of
-                    Just v -> v
+                    Just v -> v 
                     Nothing -> Var a
 apply c (App e1 e2) = App (apply c e1) (apply c e2)
 apply c (Lam n e1) = Lam n (apply c e1)
 
+applyAndReduce :: Context -> UTLC -> UTLC
+applyAndReduce c e 
+  | hasKey c e = applyAndReduce c $ (reduction . apply c) e
+  | otherwise = e
+
 eval :: Environment -> (Context, Maybe UTLC)
 eval (m, Assign n e) = (insert n e m, Nothing)
-eval (m, Calc e) = (m, Just $ (reduction . apply m) e)
+eval (m, Calc e) = (m, Just $ applyAndReduce m e)
+eval (m, Command e a) = (m, Nothing) -- running command requires IO

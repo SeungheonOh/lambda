@@ -9,4 +9,5 @@ data UTLC = Var Name
           
 data Expr = Assign Name UTLC
           | Calc UTLC
+          | Command Name [String]
           deriving (Show, Eq)

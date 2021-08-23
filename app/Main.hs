@@ -1,21 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
 module Main where
 
-import AST
-import Pretty
-import Eval
+import           AST
+import           Eval
+import           Pretty
 
-import System.IO
-import Control.Monad.State
-import Control.Applicative ( Alternative((<|>)), optional )
-import Control.Monad
-import Data.Char
+import           Control.Applicative        (Alternative ((<|>)), optional)
+import           Control.Monad
+import           Control.Monad.State
+import           Data.Char
+import           System.IO
 
-import           Data.Text (Text)
-import qualified Data.Text            as T
-import Data.HashMap.Strict as H
+import           Data.HashMap.Strict        as H
+import           Data.Text                  (Text)
+import qualified Data.Text                  as T
 import           Data.Void
-import           Text.Megaparsec
+import           Text.Megaparsec            hiding (State)
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
@@ -23,7 +24,7 @@ type Parser = Parsec Void Text
 
 pName :: Parser Name
 pName = (:[]) <$> (satisfy isAlphaNum :: Parser Char)
-     <|> string "\"" *> many alphaNumChar <* string "\""
+     <|> string "\"" *> many (anySingleBut '\"') <* string "\""
 
 -- Variable is a single character
 pVar :: Parser UTLC
@@ -54,45 +55,48 @@ pApp p = p >>= go
       r <- optional p
       case r of
         Nothing -> return acc
-        Just x -> go (App acc x)
+        Just x  -> go (App acc x)
 
 pExpr :: Parser Expr
 pExpr = try (Assign <$> pName <* (space *> string ":=" <* space) <*> pUTLC)
+     <|>Command <$> (char '!' *> many alphaNumChar) <*> many (space *> some (anySingleBut ' '))
      <|>Calc <$> pUTLC
-
-runString :: String -> IO ()
-runString s = either
-              (putStr . errorBundlePretty)
-              (\a -> do case eval (H.empty, a) of
-                          (c, Just v) -> putStrLn $ pretty v
-                          (c, Nothing) -> putStrLn "ok")
-              -- ((\a -> do putStr "Parsed : "
-              --            putStrLn $ pretty a
-              --            putStr "AST    : "
-              --            print a
-              --            putStr "IsNF   : "
-              --            print $ isNF a
-              --            putStr "isHNF  : "
-              --            print $ isHNF a) . reduction)
-              (parse pExpr "" . T.pack $ s)
-
+     
 repl :: StateT Context IO ()
 repl = do lift $ putStr ">"
           l <- lift getLine
           case parse pExpr "" . T.pack $ l of
             Left e -> (lift . putStr . errorBundlePretty) e
-            Right a -> 
+            Right a ->
               do context <- get
-                 case eval (context, a) of 
-                  (c, Just e) -> do put c 
-                                    lift $ putStrLn $ pretty e
-                  (c,Nothing) -> do put c 
-                                    lift $ putStrLn "OK"
+                 case a of
+                   Command c a -> handleCommand c a
+                   _ -> case eval (context, a) of
+                         (c, Just e) -> do put c
+                                           lift $ putStrLn $ pretty e
+                         (c,Nothing) -> do put c
+                                           lift $ putStrLn "OK"
           repl
+          
+handleCommand :: String -> [String] -> StateT Context IO ()
+handleCommand "load" arg = (lift . loadContext . head) arg >>= put
+handleCommand n _ = lift . putStrLn $ "Command not found: " ++ n
 
+run :: [String] -> Context -> Either (ParseErrorBundle Text Void) Context
+run [] c = Right c
+run ls c = case parse pExpr "" . T.pack $ head ls of
+              Right a -> case eval (c, a) of
+                             (nc, _) -> run (tail ls) nc
+              Left e -> Left e
 
+loadContext :: FilePath -> IO Context
+loadContext f = do lines <- (fmap lines . readFile) f
+                   case run lines H.empty of
+                     Left e -> do (putStr . errorBundlePretty) e
+                                  return H.empty
+                     Right c -> return c
 
 main :: IO ()
-main = forever $ hSetBuffering stdin LineBuffering
-                 >> execStateT repl H.empty
-                                  
+main = do hSetBuffering stdin LineBuffering
+          execStateT repl H.empty 
+          putStrLn "DONE"

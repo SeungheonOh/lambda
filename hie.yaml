@@ -5,6 +5,12 @@ cradle:
 
     - path: "app/Pretty.hs"
       component: "lambda:exe:lambda"
+    
+    - path: "app/Parser.hs"
+      component: "lambda:exe:lambda"
+
+    - path: "app/Repl.hs"
+      component: "lambda:exe:lambda"
 
     - path: "app/AST.hs"
       component: "lambda:exe:lambda"

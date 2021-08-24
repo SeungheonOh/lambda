@@ -7,6 +7,9 @@ import Data.HashMap.Strict
 type Context = HashMap Name UTLC
 type Environment = (Context, Expr)
 
+emptyContext :: Context
+emptyContext = empty
+
 isNF :: UTLC -> Bool
 isNF (Var _) = True
 isNF (Lam _ e) = isNF e
@@ -29,9 +32,9 @@ substitute (App a b) o n = App (substitute a o n) (substitute b o n)
 substitute (Lam a f) o n = Lam a (substitute f o n)
 
 stepReduction :: UTLC -> UTLC -- single step reduction
-stepReduction (App (Lam n e1) e2) = substitute (stepReduction e1) (Var n) (stepReduction e2)
-stepReduction (App e1 e2) = App (stepReduction e1) (stepReduction e2)
-stepReduction (Lam n e1) = Lam n (stepReduction e1)
+stepReduction (App (Lam n e1) e2) = substitute (reduction e1) (Var n) (reduction e2)
+stepReduction (App e1 e2) = App (reduction e1) (reduction e2)
+stepReduction (Lam n e1) = Lam n (reduction e1)
 stepReduction e = e
 
 reduction :: UTLC -> UTLC
@@ -42,14 +45,14 @@ reduction e
 hasKey :: Context -> UTLC -> Bool
 hasKey c (Var a) = member a c
 hasKey c (App e1 e2) = hasKey c e1 || hasKey c e2
-hasKey c (Lam _ e1) = hasKey c e1
+hasKey c (Lam n e1) = hasKey (delete n c) e1
  
 apply :: Context -> UTLC -> UTLC
 apply c (Var a) = case c !? a of
                     Just v -> v 
                     Nothing -> Var a
 apply c (App e1 e2) = App (apply c e1) (apply c e2)
-apply c (Lam n e1) = Lam n (apply c e1)
+apply c (Lam n e1) = Lam n (apply (delete n c) e1)
 
 applyAndReduce :: Context -> UTLC -> UTLC
 applyAndReduce c e 
@@ -57,6 +60,6 @@ applyAndReduce c e
   | otherwise = e
 
 eval :: Environment -> (Context, Maybe UTLC)
-eval (m, Assign n e) = (insert n e m, Nothing)
-eval (m, Calc e) = (m, Just $ applyAndReduce m e)
+eval (m, Assign n e) = (insert n (applyAndReduce m e) m, Nothing)
+eval (m, Calc e) = (m, Just $ applyAndReduce m $ reduction e)
 eval (m, Command e a) = (m, Nothing) -- running command requires IO

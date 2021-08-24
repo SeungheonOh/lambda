@@ -1,0 +1,7 @@
+"true" := \a.\b.a
+"false" := \a.\b.b
+"and" := \p.\q.pqp
+"or" := \p.\q.ppq
+"not" := \p.p #false #true
+"xor" := \a.\b.a(#not b) b
+"if" := \p.\a.\b.pab

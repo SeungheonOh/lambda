@@ -1,0 +1,14 @@
+"succ" := \n.\f.\x.f(nfx)
+"mult" := \m.\n.\f.\x.m(nf)x
+"pred" := \n.\f.\x.(n(\g.\h.h(gf))(\u.x)(\u.u))
+"add"  := \m.\n.\f.\x.mf(nfx)
+0 := \f.\x.x
+1 := #succ 0
+2 := #succ 1
+3 := #succ 2
+4 := #succ 3
+5 := #succ 4
+6 := #succ 5
+7 := #succ 6
+8 := #succ 7
+9 := #succ 8

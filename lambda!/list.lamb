@@ -1,0 +1,9 @@
+!load lambda!/conditional.lamb
+"pair" := \x.\y.\z.zxy
+"fst" := \p.p(\x.\y.x)
+"snd" := \p.p(\x.\y.y)
+"nil" := \c.\n.n
+"isnil" := \l.l(\h.\t.#false) #true
+"cons" := \h.\t.\c.\n.ch(tcn)
+"head" := \l.l(\h.\t.h) #false
+"tail" := \l.\c.\n.l(\h.\t.\g.gh(tc))(\t.n)(\h.\t.t)
